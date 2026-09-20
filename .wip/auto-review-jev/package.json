@@ -1,0 +1,9 @@
+{
+  "name": "cindy-jev-client-patch",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:offline": "tsc -p tsconfig.offline.json",
+    "test:offline": "node --test tests/*.test.mjs"
+  }
+}

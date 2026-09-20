@@ -1,0 +1,41 @@
+{
+  "repository": "anyerqi/cindy",
+  "reviewed_base_commit": "2234ef74c93d57e1e4ab85e2f8272ecc34c6d1b5",
+  "status": "client-source-overlay-and-patch-generator-not-applied-not-committed",
+  "server_changes": false,
+  "sources": {
+    "apps/desktop/src/main/maker-host/auto-permission-reviewer.ts": "b6128cd3ef2ab704e868ffdec2c35d838f7754da",
+    "apps/desktop/src/main/maker-host/index.ts": "f17a84e2db1d2170ff10b848017bb9f17b00c848",
+    "apps/desktop/src/shared/providerSecrets.ts": "fa5b305ec9396135d792b64914d2ead98422b4b7",
+    "apps/desktop/src/main/index.ts": "c16e5f9cc563437e19764c7a0f5403ef9f772c7a",
+    "apps/desktop/src/preload/preload.ts": "942de3193fecd4239b99aaa0ec10173c0f5e6562",
+    "apps/desktop/src/renderer/components/settings/SettingsView.tsx": "dd90162beeab45658e8e5506f2d0c66ef76db85c"
+  },
+  "provider_contract": {
+    "endpoint": "https://api.typesafe.ai/v1/systemone",
+    "model": "jev-1.13.0",
+    "documentation_checked": "2026-09-20",
+    "sources": [
+      "https://docs.typesafe.ai/api",
+      "https://docs.typesafe.ai/models",
+      "https://docs.typesafe.ai/confidence"
+    ]
+  },
+  "verification": {
+    "pure_module_strict_typescript": true,
+    "offline_tests": 154,
+    "offline_tests_passed": 154,
+    "all_overlay_typescript_syntax": true,
+    "project_typecheck": false,
+    "project_related_unit_tests": false,
+    "live_jev_inference": false,
+    "electron_ui_render": false,
+    "patch_generated_from_complete_checkout": false
+  },
+  "remaining_blockers": [
+    "Integrate explicit provider selection into Claude/Codex native reviewer routing.",
+    "Invalidate engine-level cached decisions and in-flight native work on provider/key/owner changes.",
+    "Apply source transforms in a real checkout and run mandatory repository gates before committing.",
+    "Evaluate Chinese authorization and context sufficiency using real Jev requests and labelled cases."
+  ]
+}
