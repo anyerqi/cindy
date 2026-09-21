@@ -29,7 +29,7 @@ jobs:
       - name: Apply integration to real application sources
         run: |
           mkdir -p "$RUNNER_TEMP/jev-logs"
-          node .wip/auto-review-jev/ci/complete.mjs
+          node .wip/auto-review-jev/ci/finish.mjs
           node scripts/design-inventory.mjs
           git add -- apps packages docs
           git diff --cached --check
@@ -117,7 +117,7 @@ jobs:
           persist-credentials: false
       - name: Reproduce validated sources and retire draft staging
         run: |
-          node .wip/auto-review-jev/ci/complete.mjs
+          node .wip/auto-review-jev/ci/finish.mjs
           node scripts/design-inventory.mjs
           git rm -r -- .wip/auto-review-jev
           git add -- apps packages docs
