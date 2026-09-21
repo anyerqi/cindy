@@ -1,0 +1,56 @@
+describe('explicit host Auto-review selection', () => {
+  it.each([undefined, 'test-ssh-host'])('keeps the sandbox while selecting the host reviewer (remote=%s)', async (remoteHostId) => {
+    let policy = { forceHost: false, revision: 'original' };
+    const agent = new CodexAgent(createDeps({}, { getAutoReviewRuntimePolicy: () => policy }));
+    const host = installFakeHost(agent, method => method === Method.TurnStart ? { turn: { id: 'jev-turn' } } : undefined);
+    const handle = await agent.startSession({ sessionId: 'jev-codex', model: 'gpt-5.4', providerId: 'openai',
+      workingDir: '/repo', permissionMode: 'auto', remoteHostId });
+    try {
+      expect(host.request.mock.calls.find(([method]) => method === Method.ThreadStart)?.[1]).toMatchObject({
+        approvalPolicy: 'on-request', approvalsReviewer: 'auto_review', sandbox: 'workspace-write',
+      });
+      policy = { forceHost: true, revision: 'jev' };
+      await handle.send({ type: 'user', content: 'Run the tests.' });
+      expect(host.request.mock.calls.find(([method]) => method === Method.TurnStart)?.[1]).toMatchObject({
+        approvalPolicy: 'on-request', approvalsReviewer: 'user', sandboxPolicy: { type: 'workspaceWrite' },
+      });
+    } finally { await handle.close(); }
+  });
+  it('restores native review on the next turn when the setting returns to default', async () => {
+    let policy = { forceHost: true, revision: 'jev' };
+    const agent = new CodexAgent(createDeps({}, { getAutoReviewRuntimePolicy: () => policy }));
+    const host = installFakeHost(agent, method => method === Method.TurnStart ? { turn: { id: 'native-turn' } } : undefined);
+    const handle = await agent.startSession({ sessionId: 'jev-reset', model: 'gpt-5.4', providerId: 'openai',
+      workingDir: '/repo', permissionMode: 'auto' });
+    try {
+      expect(host.request.mock.calls.find(([method]) => method === Method.ThreadStart)?.[1]).toMatchObject({ approvalsReviewer: 'user' });
+      policy = { forceHost: false, revision: 'reset' };
+      await handle.send({ type: 'user', content: 'Run the tests.' });
+      expect(host.request.mock.calls.find(([method]) => method === Method.TurnStart)?.[1]).toMatchObject({ approvalsReviewer: 'auto_review' });
+    } finally { await handle.close(); }
+  });
+  it('does not reuse a cached or in-flight allow across Jev key rotation', async () => {
+    let revision = 'key-1';
+    let release!: (value: { verdict: 'allow' }) => void;
+    const reviewer = vi.fn().mockResolvedValue({ verdict: 'allow' });
+    const agent = new CodexAgent(createDeps({}, { reviewAutoPermissionAction: reviewer,
+      getAutoReviewRuntimePolicy: () => ({ forceHost: true, revision }) }));
+    installFakeHost(agent);
+    const handle = await agent.startSession({ sessionId: 'jev-cache', model: 'gpt-5.4', providerId: 'openai',
+      workingDir: '/repo', permissionMode: 'auto' });
+    const action = { kind: 'exec' as const, command: 'pnpm test' };
+    try {
+      await handle.reviewAutoPermissionAction!(action);
+      await handle.reviewAutoPermissionAction!(action);
+      expect(reviewer).toHaveBeenCalledOnce();
+      revision = 'key-2';
+      reviewer.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+      const pending = handle.reviewAutoPermissionAction!(action);
+      await vi.waitFor(() => expect(reviewer).toHaveBeenCalledTimes(2));
+      revision = 'key-3'; release({ verdict: 'allow' });
+      expect((await pending).verdict).toBe('block');
+      expect((await handle.reviewAutoPermissionAction!(action)).verdict).toBe('allow');
+      expect(reviewer).toHaveBeenCalledTimes(3);
+    } finally { await handle.close(); }
+  });
+});
