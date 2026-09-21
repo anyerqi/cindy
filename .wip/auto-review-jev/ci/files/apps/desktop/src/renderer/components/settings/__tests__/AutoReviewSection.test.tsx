@@ -26,15 +26,15 @@ function fixture(initial: Partial<AutoReviewSettingsView> = {}) {
   return { api, update: (next: Partial<AutoReviewSettingsView>) => { view = { ...view, ...next }; changed(); } };
 }
 async function ready() {
-  await waitFor(() => expect(screen.getByRole('radio', { name: 'settings.autoReview.jev' })).not.toBeDisabled());
+  await waitFor(() => expect((screen.getByRole('radio', { name: 'settings.autoReview.jev' }) as HTMLButtonElement).disabled).toBe(false));
 }
 describe('client Auto-review settings', () => {
   it('defaults to original; requires a new key before saving Jev and clears the typed value', async () => {
     const { api } = fixture(); render(<AutoReviewSection />); await ready();
-    expect(screen.getByRole('radio', { name: 'settings.autoReview.original' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'settings.autoReview.original' }).getAttribute('aria-checked')).toBe('true');
     expect(screen.queryByLabelText('settings.autoReview.apiKey')).toBeNull();
     fireEvent.click(screen.getByRole('radio', { name: 'settings.autoReview.jev' }));
-    expect(screen.getByRole('button', { name: 'settings.autoReview.save' })).toBeDisabled();
+    expect((screen.getByRole('button', { name: 'settings.autoReview.save' }) as HTMLButtonElement).disabled).toBe(true);
     const input = screen.getByLabelText('settings.autoReview.apiKey') as HTMLInputElement;
     expect(input.type).toBe('password');
     fireEvent.change(input, { target: { value: 'fake-typesafe-key' } });
@@ -63,7 +63,7 @@ describe('client Auto-review settings', () => {
     fireEvent.change(screen.getByLabelText('settings.autoReview.apiKey'), { target: { value: 'fake-new-key' } });
     await act(async () => f.update({ revision: 'c'.repeat(64) }));
     await waitFor(() => expect(screen.getByText('settings.autoReview.changed')).toBeTruthy());
-    expect(screen.getByRole('button', { name: 'settings.autoReview.save' })).toBeDisabled();
+    expect((screen.getByRole('button', { name: 'settings.autoReview.save' }) as HTMLButtonElement).disabled).toBe(true);
     expect(f.api.save).not.toHaveBeenCalled();
   });
 });
