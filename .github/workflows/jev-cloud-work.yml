@@ -1,0 +1,26 @@
+name: Jev cloud integration workspace
+on:
+  push:
+    branches: [wip/auto-review-jev-client]
+    paths:
+      - .github/workflows/jev-cloud-work.yml
+      - .wip/auto-review-jev/ci/**
+permissions:
+  contents: read
+jobs:
+  source:
+    if: github.repository == 'anyerqi/cindy' && github.ref == 'refs/heads/wip/auto-review-jev-client'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          lfs: false
+      - name: Export tracked source only
+        run: git archive --format=tar.gz --output="$RUNNER_TEMP/cindy-source.tar.gz" HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cindy-source
+          path: ${{ runner.temp }}/cindy-source.tar.gz
+          retention-days: 1
