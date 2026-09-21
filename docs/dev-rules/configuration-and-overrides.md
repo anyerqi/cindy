@@ -79,3 +79,8 @@ token）与 [`engineering-conventions.md`](engineering-conventions.md)（i18n）
 
 实现／PR 说明至少写明：配置层级、默认值及推荐理由、override 如何记录与识别、未自定义
 用户如何跟随新默认、恢复默认会清除什么。
+
+## Auto-review provider
+
+Client-only reviewer selection, encrypted BYOK storage and runtime application are
+defined in [Auto-review providers](auto-review-providers.md).

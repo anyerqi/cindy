@@ -1,3 +1,4 @@
+import { createAutoReviewPolicyGuard } from '../shared/auto-review-runtime-policy.js';
 /**
  * CodexAgent — 路线 A 完整版 (Phase 1+2+3+4 全打通)。
  *
@@ -4607,6 +4608,10 @@ export class CodexAgent extends BaseAgent {
     let currentAutoReviewAuthority: ReturnType<typeof autoReviewContext>;
     const priorAutoReviewIntent = () => JSON.stringify(currentAutoReviewAuthority ?? null) === JSON.stringify(autoReviewContext() ?? null) ? currentAutoReviewIntent : '';
     const autoReviewDecisionCache = new Map<string, Promise<AutoReviewDecision>>();
+    const autoReviewPolicy = createAutoReviewPolicyGuard(
+      this.deps.getAutoReviewRuntimePolicy,
+      () => autoReviewDecisionCache.clear(),
+    );
     const setAutoReviewIntent = (content: AutoReviewUserIntent, source = { authority: currentAutoReviewAuthority }): void => {
       autoReviewActionContext.advance(typeof content !== 'string' && JSON.stringify(currentAutoReviewAuthority ?? null) === JSON.stringify(source.authority ?? null));
       currentAutoReviewIntent = normalizeAutoReviewUserIntent(content);
@@ -5316,7 +5321,8 @@ export class CodexAgent extends BaseAgent {
         ),
         platform: sessionReviewPlatform,
       };
-      const key = JSON.stringify(request);
+      const reviewPolicy = autoReviewPolicy.capture();
+      const key = JSON.stringify([reviewPolicy, request]);
       const cached = autoReviewDecisionCache.get(key);
       const pending = cached ?? resolveAutoReviewDecision(
           request,
@@ -5332,7 +5338,7 @@ export class CodexAgent extends BaseAgent {
               verdict: 'block',
               reason: 'Directory permissions changed; retry with the current scope.',
             }
-      )).then((decision) => {
+      )).then((decision) => autoReviewPolicy.protect(reviewPolicy, decision)).then((decision) => {
         if (autoReviewDecisionCache.get(key) === pending && directoryGeneration === autoReviewDirectoryGeneration) {
           autoReviewActionContext.record(action, decision);
         }
@@ -5939,7 +5945,7 @@ export class CodexAgent extends BaseAgent {
       const config = mapPermissionToCodex(
         mutablePermissionMode,
         approvalsReviewerProtocolSupported,
-        approvalsReviewerRouteSupported,
+        approvalsReviewerRouteSupported && !autoReviewPolicy.capture().forceHost,
       );
       // `never` may bypass command approval callbacks. With a Host shell
       // policy, route execution through Codex's trusted-command gate so broad

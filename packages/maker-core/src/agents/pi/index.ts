@@ -1,3 +1,4 @@
+import { createAutoReviewPolicyGuard } from '../shared/auto-review-runtime-policy.js';
 import { getPiExtensionUiCapability } from './extension-ui-capabilities.js';
 import { parsePiManagementArgs, parsePiManagementText } from './managed-command.js';
 import { snapshotDisabledSkillLaunch, currentDisabledSkillLaunchPaths, extendDisabledSkillLaunchPaths, type DisabledSkillLaunchSnapshot } from '../shared/skill-activation.js';
@@ -3809,6 +3810,10 @@ export class PiAgent extends BaseAgent {
     let currentAutoReviewAuthority: ReturnType<typeof autoReviewContext> | null;
     const priorAutoReviewIntent = () => JSON.stringify(currentAutoReviewAuthority ?? null) === JSON.stringify(autoReviewContext() ?? null) ? currentAutoReviewIntent : '';
     const autoReviewDecisionCache = new Map<string, Promise<AutoReviewDecision>>();
+    const autoReviewPolicy = createAutoReviewPolicyGuard(
+      this.deps.getAutoReviewRuntimePolicy,
+      () => autoReviewDecisionCache.clear(),
+    );
     const setAutoReviewIntent = (content: AutoReviewUserIntent, source = { authority: currentAutoReviewAuthority }): void => {
       autoReviewActionContext.advance(typeof content !== 'string' && JSON.stringify(currentAutoReviewAuthority ?? null) === JSON.stringify(source.authority ?? null));
       currentAutoReviewIntent = normalizeAutoReviewUserIntent(content);
@@ -3936,7 +3941,8 @@ export class PiAgent extends BaseAgent {
         writableRoots: [opts.workingDir, ...mutableWritableDirs],
         platform: opts.remoteHostId ? ('linux' as const) : process.platform,
       };
-      const cacheKey = JSON.stringify(request);
+      const reviewPolicy = autoReviewPolicy.capture();
+      const cacheKey = JSON.stringify([reviewPolicy, request]);
       let pending = autoReviewDecisionCache.get(cacheKey);
       if (!pending) {
         pending = resolveAutoReviewDecision(request, this.deps.reviewAutoPermissionAction);
@@ -3952,7 +3958,7 @@ export class PiAgent extends BaseAgent {
               verdict: 'block',
               reason: 'Directory permissions changed; retry with the current scope.',
             }
-      )).then((decision) => {
+      )).then((decision) => autoReviewPolicy.protect(reviewPolicy, decision)).then((decision) => {
         if (autoReviewDecisionCache.get(cacheKey) === pending && directoryGeneration === autoReviewDirectoryGeneration) {
           autoReviewActionContext.record(action, decision);
         }

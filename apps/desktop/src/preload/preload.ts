@@ -11,6 +11,8 @@ import {
 } from '../shared/loginItem';
 import type { BotToolsetContext } from '../shared/botRemoteCapabilities';
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
+import { createAutoReviewSettingsBridge } from './autoReviewSettingsBridge.js';
+contextBridge.exposeInMainWorld('autoReviewSettings', createAutoReviewSettingsBridge(ipcRenderer));
 import { DESKTOP_LOCAL, type RemoteDesktopApi } from '../shared/remoteDesktop';
 import { DEVICE_LINK_PUSH } from '../shared/deviceLinkIpc';
 import type { MobileCodexRateLimitsResult } from '@cindy/maker-shared/device-link-contract';

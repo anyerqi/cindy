@@ -147,6 +147,10 @@ export function createAutoReviewSettingsService(deps: AutoReviewSettingsDeps) {
     routingStamp(): string | null {
       const scope = deps.captureScope();
       if (!scope) return null;
+      // Other processes and credential cleanup can change a key without this
+      // process's epoch. Include its opaque digest only for the selected Jev
+      // provider; original mode never probes the optional credential.
+      if (scope.readSettings().provider === 'jev') return snapshot(scope).view.revision;
       return createHmac('sha256', tokenKey)
         .update(JSON.stringify([scope.id, scope.readSettings(), epoch])).digest('hex');
     },

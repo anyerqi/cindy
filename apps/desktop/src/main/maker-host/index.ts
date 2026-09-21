@@ -35,6 +35,7 @@ import {
   configureDefaultImageResizer,
   type AgentKind,
   type McpProvider,
+  type AutoReviewRequest,
 } from '@cindy/maker-core';
 import type { ProviderView } from '@cindy/model-providers';
 import {
@@ -124,7 +125,7 @@ import {
 } from './session-storage.js';
 import { desktopMakerLogger } from './logger-adapter.js';
 import { outboundFetch } from './outbound-fetch.js';
-import { readCustomProviderKey } from '../secrets/providerSecretStore.js';
+import { getProviderSecretStore, readCustomProviderKey } from '../secrets/providerSecretStore.js';
 import { createVisionBridge } from '../vision-bridge/vision-bridge.js';
 import {
   getVisionBridgeController,
@@ -205,7 +206,10 @@ import {
 import { resolveRemoteClaudeRoute } from './remote-claude-route.js';
 import { resolveDesktopClaudeSubagentModelAccess } from './subagent-model-access.js';
 import { claudeSubagentUsageBridge } from './claude-subagent-usage-bridge.js';
-import { createAutoPermissionReviewer } from './auto-permission-reviewer.js';
+import { buildAutoPermissionReviewInput, buildAutoPermissionReviewPolicy, createAutoPermissionReviewer } from './auto-permission-reviewer.js';
+import { prepareJevReviewInput } from './auto-review/jev-context.js';
+import { createAutoReviewProviderRouter } from './auto-review/provider-router.js';
+import { getAutoReviewSettingsService, onAutoReviewSettingsChanged } from './auto-review/settings-store.js';
 import {
   AUTO_REVIEW_ROUTER_GUARD_TIMEOUT_MS,
   createAutoReviewModelRouter,
@@ -396,11 +400,36 @@ const requestAutoReviewText = createAutoReviewModelRouter({
   logger: desktopMakerLogger,
 });
 
+// This is a client-only reviewer selection. The original chain is unchanged.
+// Store access stays lazy; importing Maker never probes the optional Jev key.
+const requestAutoReviewProviderText = createAutoReviewProviderRouter<AutoReviewRequest>({
+  readProvider: () => getAutoReviewSettingsService().readProvider(),
+  configStamp: () => getAutoReviewSettingsService().routingStamp(),
+  subscribeChanges: onAutoReviewSettingsChanged,
+  ownerStamp: () => {
+    try { return getAutoReviewSettingsService().get().revision; }
+    catch { return null; }
+  },
+  requestDefault: requestAutoReviewText,
+  prepareJev: (request) => prepareJevReviewInput(
+    buildAutoPermissionReviewPolicy(), buildAutoPermissionReviewInput(request), request,
+  ),
+  readJevApiKey: () => getProviderSecretStore().get('typesafe-auto-review'),
+  fetchImpl: outboundFetch,
+  logger: desktopMakerLogger,
+});
+
+// Provider-neutral policy. Original mode never probes optional Jev credentials.
+const getAutoReviewRuntimePolicy = () => {
+  const settings = getAutoReviewSettingsService();
+  return { forceHost: settings.readProvider() !== 'default', revision: settings.routingStamp() };
+};
+
 const reviewAutoPermissionAction = createAutoPermissionReviewer({
   logger: desktopMakerLogger,
   managesRetries: true,
   resolveRequestTimeoutMs: () => AUTO_REVIEW_ROUTER_GUARD_TIMEOUT_MS,
-  requestText: (_request, prompt, { signal }) => requestAutoReviewText(prompt, signal),
+  requestText: (request, prompt, context) => requestAutoReviewProviderText(request, prompt, context),
 });
 
 /**
@@ -1164,6 +1193,7 @@ export function getMaker(): Maker {
       },
       registerLocalAgentProcess: ({ pid, kind, role }) => registerAgentProcess(pid, kind, role),
       reviewAutoPermissionAction,
+      getAutoReviewRuntimePolicy,
       // 每个 session 的 cc 子进程 debug 写到 sessions/<id>/cc-debug.raw.log (logger 拼路径
       // + mkdir), tailer 再归一化汇入该 session 的 <date>.ndjson。
       resolveCcDebugFile: resolveSessionCcDebugFile,
@@ -1602,6 +1632,7 @@ export function getMaker(): Maker {
         return origin ? getOutboundPathSnapshotFor([origin]) : null;
       },
       reviewAutoPermissionAction,
+      getAutoReviewRuntimePolicy,
       prepareCodexLocalCredentialModeSwitch: async (ctx) => {
         const maker = _maker;
         if (!maker) throw new Error('Maker is not initialized for Codex credential mode switch');
@@ -2211,6 +2242,7 @@ export function getMaker(): Maker {
       },
       registerLocalAgentProcess: ({ pid, kind, role }) => registerAgentProcess(pid, kind, role),
       reviewAutoPermissionAction,
+      getAutoReviewRuntimePolicy,
       capabilityAdditions: {
         availableModels: deriveAvailableModels(getDesktopSelectableCatalog(), 'pi'),
       },

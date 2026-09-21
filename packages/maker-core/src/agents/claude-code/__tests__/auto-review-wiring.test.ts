@@ -79,6 +79,7 @@ function noopLogger(): Logger {
 function createDeps(options: {
   authSource?: 'oauth' | 'api-key';
   reviewAutoPermissionAction?: AgentDeps['reviewAutoPermissionAction'];
+  getAutoReviewRuntimePolicy?: AgentDeps['getAutoReviewRuntimePolicy'];
   mcpProviderNames?: readonly string[];
   getMcpToolApprovalPolicy?: (context: McpToolApprovalContext) => McpToolApprovalPolicy;
 } = {}): AgentDeps {
@@ -98,6 +99,7 @@ function createDeps(options: {
       toClaudeSdkConfig: () => ({ type: 'stdio', command: 'true' }),
     })),
     reviewAutoPermissionAction: options.reviewAutoPermissionAction,
+    getAutoReviewRuntimePolicy: options.getAutoReviewRuntimePolicy,
     getMcpToolApprovalPolicy: options.getMcpToolApprovalPolicy,
   };
 }
@@ -165,6 +167,7 @@ async function startSession(
     authSource?: 'oauth' | 'api-key';
     reviewVerdict?: 'allow' | 'block' | 'ask';
     reviewer?: AgentDeps['reviewAutoPermissionAction'];
+    getAutoReviewRuntimePolicy?: AgentDeps['getAutoReviewRuntimePolicy'];
     attachResolver?: boolean;
     model?: string;
     mcpProviderNames?: readonly string[];
@@ -194,6 +197,7 @@ async function startSession(
   const agent = new ClaudeCodeAgent(createDeps({
     authSource: options.authSource,
     reviewAutoPermissionAction,
+    getAutoReviewRuntimePolicy: options.getAutoReviewRuntimePolicy,
     mcpProviderNames: options.mcpProviderNames,
     getMcpToolApprovalPolicy: options.mcpToolApprovalPolicy,
   }));
@@ -1297,5 +1301,68 @@ describe('Auto review for progressive MCP operations', () => {
       if (verdict === 'ask') expect(permissionRequests(seen)[0]?.suggestions).toBeUndefined();
       await handle.close();
     }
+  });
+});
+
+
+describe('explicit host Auto-review provider selection', () => {
+  it('routes official OAuth without MCP through the host when Jev is selected', async () => {
+    const { handle, queryPermissionMode, canUseTool, reviewAutoPermissionAction } = await startSession('auto', {
+      providerId: 'anthropic', authSource: 'oauth', reviewVerdict: 'block',
+      getAutoReviewRuntimePolicy: () => ({ forceHost: true, revision: 'jev-key-1' }),
+    });
+    try {
+      expect(queryPermissionMode).toBe('default');
+      const result = await canUseTool('Bash', { command: 'npx tsc --noEmit' }, { toolUseID: 'jev-review' });
+      expect(result.behavior).toBe('deny');
+      expect(reviewAutoPermissionAction).toHaveBeenCalledOnce();
+    } finally { await handle.close(); }
+  });
+  it.each([[false, true, 'default'], [true, false, 'auto']] as const)(
+    'synchronizes native reviewer %s -> %s at the next send', async (initial, next, sdkMode) => {
+      let policy = { forceHost: initial as boolean, revision: 'initial' };
+      const { handle, fakeQuery } = await startSession('auto', {
+        providerId: 'anthropic', authSource: 'oauth', getAutoReviewRuntimePolicy: () => policy,
+      });
+      try {
+        policy = { forceHost: next, revision: 'next' };
+        await handle.send({ type: 'user', content: 'Run the tests.' });
+        expect(fakeQuery.setPermissionMode).toHaveBeenCalledWith(sdkMode);
+      } finally { await handle.close(); }
+    },
+  );
+  it('does not accept a send when changing the native reviewer fails', async () => {
+    let policy = { forceHost: false, revision: 'original' };
+    const { handle } = await startSession('auto', {
+      providerId: 'anthropic', authSource: 'oauth', rejectPermissionModeChange: true,
+      getAutoReviewRuntimePolicy: () => policy,
+    });
+    try {
+      policy = { forceHost: true, revision: 'jev' };
+      await expect(handle.send({ type: 'user', content: 'Run the tests.' })).rejects.toThrow('permission transport failed');
+    } finally { await handle.close(); }
+  });
+  it('retires cached and pending decisions when the credential revision changes', async () => {
+    let revision = 'jev-key-1';
+    let resolvePending!: (value: { verdict: 'allow' }) => void;
+    const reviewer = vi.fn().mockResolvedValue({ verdict: 'allow' });
+    const { handle } = await startSession('auto', {
+      reviewer, getAutoReviewRuntimePolicy: () => ({ forceHost: true, revision }),
+    });
+    const action = { kind: 'exec' as const, command: 'pnpm test' };
+    try {
+      await handle.reviewAutoPermissionAction!(action);
+      await handle.reviewAutoPermissionAction!(action);
+      expect(reviewer).toHaveBeenCalledOnce();
+      revision = 'jev-key-2';
+      reviewer.mockImplementationOnce(() => new Promise(resolve => { resolvePending = resolve; }));
+      const old = handle.reviewAutoPermissionAction!(action);
+      await vi.waitFor(() => expect(reviewer).toHaveBeenCalledTimes(2));
+      revision = 'jev-key-3';
+      resolvePending({ verdict: 'allow' });
+      expect((await old).verdict).toBe('block');
+      expect((await handle.reviewAutoPermissionAction!(action)).verdict).toBe('allow');
+      expect(reviewer).toHaveBeenCalledTimes(3);
+    } finally { await handle.close(); }
   });
 });

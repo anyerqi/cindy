@@ -273,6 +273,30 @@
     }
   },
   "settings": {
+    "autoReview": {
+      "title": "Auto-review",
+      "mode": "審査モード",
+      "description": "Cindy の権限審査に使うプロバイダーを選択します。タスクのモデルは変更しません。",
+      "original": "従来の方式（既定）",
+      "jev": "Jev",
+      "privacy": "Jev は、制限されたユーザーの許可、操作内容、ディレクトリ権限を TypeSafe に直接送信します。API キーはこの端末に暗号化して保存され、Cindy ゲートウェイには送信されません。",
+      "apiKey": "Jev API キー",
+      "replaceKey": "保存済みのキーを保持する場合は空欄",
+      "enterKey": "TypeSafe API キーを入力",
+      "keySaved": "キーは暗号化して保存済みです。内容は表示しません。保存では API 接続は検証されません。",
+      "keyRequired": "Jev を有効にするには TypeSafe API キーが必要です。",
+      "invalidConfiguration": "保存済みの設定を安全に読み取れません。既定に戻してください。",
+      "loadError": "設定を読み込めません。再読み込みしてください。",
+      "saveError": "変更を保存できません。現在の状態の再読み込みを試みました。必要に応じてキーを再入力してください。",
+      "changed": "別のウィンドウで設定が変更されました。保存前に再読み込みしてください。未保存の入力は消去されます。",
+      "working": "処理中…",
+      "save": "保存",
+      "restoreDefault": "既定に戻す",
+      "deleteKey": "キーを削除して既定に戻す",
+      "reload": "再読み込み",
+      "restoreHint": "既定に戻してもキーは保持されます。削除する場合はキーの削除を選んでください。",
+      "coverage": "Auto-review を使用するタスクに適用されます。モードの変更は次にメッセージを送信した時に有効になります。実行済みの操作は再審査されません。"
+    },
     "title": "設定",
     "back": "戻る",
     "defaults": {

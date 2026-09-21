@@ -1,3 +1,4 @@
+import type { AutoReviewRuntimePolicy } from './shared/auto-review-runtime-policy.js';
 /**
  * BaseAgent — Claude Code / Codex 等具体 agent 的统一抽象。
  *
@@ -1080,10 +1081,16 @@ export interface AgentDeps {
 
   /**
    * Host-owned lightweight reviewer for routes without a healthy vendor-native
-   * reviewer. The host must use this session's selected provider + model and pass
-   * only the request supplied here; null/throw is treated as a silent block.
+   * reviewer, or when the user explicitly selects a host review provider. Only
+   * the bounded request is supplied; null/throw yields the unavailable ask path.
    */
   reviewAutoPermissionAction?: AutoReviewDelegate;
+
+  /** Host-selected reviewer policy. Never changes a task's permission mode or sandbox.
+   * The revision must change on provider, credential, and owner changes. No secrets.
+   * Undefined preserves the legacy native-first behavior; null means unavailable.
+   */
+  getAutoReviewRuntimePolicy?: () => AutoReviewRuntimePolicy | null;
 
   /** Scope tools/list during native startup, before a real thread id exists. Never authorizes tools/call. */
   withCodexMcpDiscoveryContext?: <T>(

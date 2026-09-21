@@ -26,7 +26,8 @@ export type ProviderSecretId =
   | 'xai'
   | 'voice-asr'
   | 'gemini'
-  | 'openai-images';
+  | 'openai-images'
+  | 'typesafe-auto-review';
 
 /** The dedicated builtin key bridge and its UI must expose the same supported IDs. */
 export function isBuiltinApiKeyProviderId(providerId: unknown): providerId is ProviderSecretId {
@@ -56,6 +57,7 @@ const STORAGE_KEYS: Record<ProviderSecretId, string> = {
   // (codex-home/auth.json)是两套凭证:订阅 token 调不了平台 images API(实测
   // 401/403 缺 scope),聊天照旧走订阅,图像走这把平台 key。
   'openai-images': 'provider_key_openai_images',
+  'typesafe-auto-review': 'provider_key_typesafe_auto_review',
   // 未来新增示例(届时在 ProviderSecretId 与此处同步添加):
   //   anthropic: 'provider_key_anthropic',
   //   openai:    'provider_key_openai',
@@ -89,6 +91,7 @@ const MAIN_ONLY_PROVIDER_SECRET_STORAGE_KEYS = new Set<string>([
   STORAGE_KEYS['voice-asr'].toLowerCase(),
   STORAGE_KEYS['gemini'].toLowerCase(),
   STORAGE_KEYS['openai-images'].toLowerCase(),
+  STORAGE_KEYS['typesafe-auto-review'].toLowerCase(),
   REMOTE_MCP_BRIDGE_TOKEN_STORAGE_KEY.toLowerCase(),
   PI_PROXY_DERIVATION_KEY_STORAGE_KEY.toLowerCase(),
 ]);

@@ -1,3 +1,4 @@
+import { createAutoReviewPolicyGuard, sameAutoReviewRuntimePolicy } from '../shared/auto-review-runtime-policy.js';
 /**
  * ClaudeCodeAgent — Claude Code 的 maker-core 一等公民实现。
  *
@@ -2503,6 +2504,11 @@ export class ClaudeCodeAgent extends BaseAgent {
     let currentAutoReviewAuthority: ReturnType<typeof autoReviewContext>;
     const priorAutoReviewIntent = () => JSON.stringify(currentAutoReviewAuthority ?? null) === JSON.stringify(autoReviewContext() ?? null) ? currentAutoReviewIntent : '';
     const autoReviewDecisionCache = new Map<string, Promise<AutoReviewDecision>>();
+    const autoReviewPolicy = createAutoReviewPolicyGuard(
+      this.deps.getAutoReviewRuntimePolicy,
+      () => autoReviewDecisionCache.clear(),
+    );
+    let appliedAutoReviewPolicy = autoReviewPolicy.capture();
     // Claude's native OAuth Auto classifier bypasses canUseTool entirely. Once a host MCP
     // is registered, that would also bypass Cindy's trusted-server and prompt policies,
     // leaving permission requests with no Cindy interaction surface. Keep native Auto for
@@ -2511,6 +2517,7 @@ export class ClaudeCodeAgent extends BaseAgent {
     const hasRegisteredMcpServers = (): boolean => registeredMcpServerNames.size > 0;
     const usesNativeClaudeAutoReview = (): boolean =>
       !nativeAutoReviewUnavailable
+      && !autoReviewPolicy.capture().forceHost
       && mutableAutoReviewCredentialMode === 'oauth-bearer'
       && !hasRegisteredMcpServers()
       // Claude native Auto sees additionalDirectories as one undifferentiated scope and
@@ -2574,7 +2581,8 @@ export class ClaudeCodeAgent extends BaseAgent {
         writableRoots,
         platform,
       };
-      const key = JSON.stringify(request);
+      const reviewPolicy = autoReviewPolicy.capture();
+      const key = JSON.stringify([reviewPolicy, request]);
       const cached = autoReviewDecisionCache.get(key);
       const pending = cached ?? resolveAutoReviewDecision(
           request,
@@ -2590,7 +2598,7 @@ export class ClaudeCodeAgent extends BaseAgent {
               verdict: 'block',
               reason: 'Directory permissions changed; retry with the current scope.',
             }
-      )).then((decision) => {
+      )).then((decision) => autoReviewPolicy.protect(reviewPolicy, decision)).then((decision) => {
         if (autoReviewDecisionCache.get(key) === pending && directoryGeneration === autoReviewDirectoryGeneration) {
           autoReviewActionContext.record(action, decision);
         }
@@ -6103,6 +6111,24 @@ export class ClaudeCodeAgent extends BaseAgent {
             parent_tool_use_id: null,
             ...(sendOpts?.messageUuid ? { uuid: sendOpts.messageUuid } : {}),
           };
+          // Apply a changed reviewer at the next accepted send, after async content
+          // preparation. Native Auto otherwise bypasses canUseTool completely.
+          const reviewPolicy = autoReviewPolicy.capture();
+          if (!sameAutoReviewRuntimePolicy(appliedAutoReviewPolicy, reviewPolicy)) {
+            if (mutablePermissionMode === 'auto') {
+              const targetQuery = q;
+              const targetMode = currentTurnSdkPermissionMode();
+              await targetQuery.setPermissionMode(targetMode);
+              if (closed || sendOpts?.signal?.aborted || targetQuery !== q
+                || targetMode !== currentTurnSdkPermissionMode()
+                || !sameAutoReviewRuntimePolicy(reviewPolicy, autoReviewPolicy.capture())) {
+                throw new Error('Auto-review settings changed during send; retry with the current settings.');
+              }
+              if (targetMode === 'auto') nativeAutoQueries.add(targetQuery);
+              else nativeAutoQueries.delete(targetQuery);
+            }
+            appliedAutoReviewPolicy = reviewPolicy;
+          }
           const accepted = inputQueue.push(sdkInput);
           if (!accepted) {
             // close() can win while content conversion is still preparing files or

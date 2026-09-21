@@ -1,5 +1,7 @@
 import { useEffect, useId, useMemo, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import type { AutoReviewProvider, AutoReviewSettingsApi } from '../../../shared/autoReviewSettings.js';
 import { createAutoReviewSettingsController } from './autoReviewSettingsController.js';
@@ -11,7 +13,6 @@ const unavailableApi: AutoReviewSettingsApi = {
   deleteKey: async () => { throw new Error('unavailable'); },
   onChanged: () => () => {},
 };
-const buttonClass = 'inline-flex min-h-8 items-center justify-center rounded-full border border-[var(--settings-theme-card-border)] bg-[var(--settings-input-bg)] px-3 py-1 text-13 text-[var(--settings-section-title)] transition-colors hover:bg-[var(--surface-chip)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:pointer-events-none disabled:opacity-50';
 
 export function AutoReviewSection() {
   const { t } = useTranslation();
@@ -63,11 +64,11 @@ export function AutoReviewSection() {
               <label htmlFor={inputId} className="block text-13 text-[var(--settings-section-title)]">
                 {t('settings.autoReview.apiKey')}
               </label>
-              <input
+              <Input
                 id={inputId}
                 type="password"
                 value={state.keyDraft}
-                onChange={(event) => controller.typeKey(event.target.value)}
+                onChange={controller.typeKey}
                 maxLength={4096}
                 disabled={blocked || state.view?.configurationError}
                 autoComplete="off"
@@ -75,7 +76,6 @@ export function AutoReviewSection() {
                 spellCheck={false}
                 aria-describedby={`${inputId}-privacy ${inputId}-key-status`}
                 placeholder={t(state.view?.hasApiKey ? 'settings.autoReview.replaceKey' : 'settings.autoReview.enterKey')}
-                className="min-h-9 w-full rounded-lg border border-[var(--settings-theme-card-border)] bg-[var(--settings-input-bg)] px-3 py-2 text-13 text-[var(--settings-section-title)] placeholder:text-[var(--text-placeholder)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"
               />
               <p id={`${inputId}-key-status`} className="text-12 text-[var(--settings-section-desc)]">
                 {t(state.view?.hasApiKey ? 'settings.autoReview.keySaved' : 'settings.autoReview.keyRequired')}
@@ -88,18 +88,18 @@ export function AutoReviewSection() {
           {state.error && <p role="alert" className="text-12 text-[var(--settings-section-title)]">{t(`settings.autoReview.${state.error}Error`)}</p>}
           {state.stale && <p role="status" className="text-12 text-[var(--settings-section-desc)]">{t('settings.autoReview.changed')}</p>}
           <div className="flex flex-wrap items-center gap-2">
-            <button className={buttonClass} type="button" disabled={blocked || !!state.view?.configurationError || missingKey} onClick={() => void controller.save()}>
+            <Button type="button" disabled={blocked || !!state.view?.configurationError || missingKey} onClick={() => void controller.save()}>
               {t(state.busy ? 'settings.autoReview.working' : 'settings.autoReview.save')}
-            </button>
-            <button className={buttonClass} type="button" disabled={blocked || (!state.view?.isCustomized && !state.view?.configurationError)} onClick={() => void controller.reset()}>
+            </Button>
+            <Button variant="secondary" type="button" disabled={blocked || (!state.view?.isCustomized && !state.view?.configurationError)} onClick={() => void controller.reset()}>
               {t('settings.autoReview.restoreDefault')}
-            </button>
-            {state.view?.hasApiKey && <button className={buttonClass} type="button" disabled={blocked} onClick={() => void controller.deleteKey()}>
+            </Button>
+            {state.view?.hasApiKey && <Button variant="secondary" type="button" disabled={blocked} onClick={() => void controller.deleteKey()}>
               {t('settings.autoReview.deleteKey')}
-            </button>}
-            {(state.error || state.stale) && <button className={buttonClass} type="button" disabled={state.busy} onClick={() => void controller.refresh()}>
+            </Button>}
+            {(state.error || state.stale) && <Button variant="secondary" type="button" disabled={state.busy} onClick={() => void controller.refresh()}>
               {t('settings.autoReview.reload')}
-            </button>}
+            </Button>}
           </div>
           <p className="text-12 leading-relaxed text-[var(--settings-section-desc)]">{t('settings.autoReview.restoreHint')}</p>
         </div>

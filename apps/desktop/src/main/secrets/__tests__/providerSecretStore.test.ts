@@ -118,6 +118,7 @@ describe('providerSecrets registry', () => {
 
   it('keeps the OpenAI images API key behind its dedicated main-only IPC boundary', () => {
     expect(isRendererAccessibleSafeStorageKey(providerSecretStorageKey('openai-images'))).toBe(false);
+    expect(isRendererAccessibleSafeStorageKey(providerSecretStorageKey('typesafe-auto-review'))).toBe(false);
     expect(isRendererAccessibleSafeStorageKey('PROVIDER_KEY_OPENAI_IMAGES')).toBe(false);
   });
 

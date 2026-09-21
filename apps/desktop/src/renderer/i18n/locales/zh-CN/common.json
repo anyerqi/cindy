@@ -273,6 +273,30 @@
     }
   },
   "settings": {
+    "autoReview": {
+      "title": "Auto-review",
+      "mode": "审阅模式",
+      "description": "选择 Cindy 权限审阅的供应商，不改变任务使用的模型。",
+      "original": "原有实现（默认）",
+      "jev": "Jev",
+      "privacy": "Jev 会将有界的用户授权、操作详情和目录权限直接发送至 TypeSafe。API key 加密保存在本机，不发送至 Cindy 网关。",
+      "apiKey": "Jev API key",
+      "replaceKey": "留空以保留已保存的密钥",
+      "enterKey": "输入 TypeSafe API key",
+      "keySaved": "已加密保存密钥，此处不回显原文。保存不代表已验证接口可用。",
+      "keyRequired": "启用 Jev 前需要设置 TypeSafe API key。",
+      "invalidConfiguration": "无法安全读取已保存的配置，请先恢复默认。",
+      "loadError": "设置加载失败，请重新加载后重试。",
+      "saveError": "未能保存修改。已尝试重新读取当前状态；如需更换密钥，请重新输入。",
+      "changed": "设置已在其他窗口修改。请先重新加载，未保存的输入将被清除。",
+      "working": "处理中…",
+      "save": "保存",
+      "restoreDefault": "恢复默认",
+      "deleteKey": "删除密钥并恢复默认",
+      "reload": "重新加载",
+      "restoreHint": "恢复默认会保留密钥。如需移除，请使用“删除密钥”。",
+      "coverage": "仅影响使用 Auto-review 的任务。模式切换在下次发送消息时生效，不会重新审核已执行的操作。"
+    },
     "title": "设置",
     "back": "返回",
     "defaults": {

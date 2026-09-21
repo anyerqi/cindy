@@ -28,7 +28,7 @@ function fixture() {
   return { service, setOwner: (value: string | null) => { owner = value; },
     setGate: (value: Promise<void>) => { gate = value; },
     corrupt: () => { settings = { provider: null, nonce: 'bad', valid: false, isCustomized: true }; },
-    key: () => key, reads: () => keyReads,
+    key: () => key, reads: () => keyReads, replaceKeyExternally: (value: string | null) => { key = value; },
     input: () => ({ provider: 'jev' as const, apiKey: 'fake-typesafe-key', expectedRevision: service.get().revision }),
   };
 }
@@ -84,5 +84,24 @@ describe('client-only Auto-review settings', () => {
     });
     const pending = handler('save')({}, input); await Promise.resolve(); trusted = false; release();
     await expect(pending).rejects.toThrow('INTERNAL'); expect(f.key()).toBeNull();
+  });
+});
+
+
+describe('external Jev credential revision', () => {
+  it.each(['fake-rotated-key', null])('retires cached and pending decisions after an external key change (%s)', async nextKey => {
+    const f = fixture(); await f.service.save(f.input());
+    const before = f.service.routingStamp(); const lease = f.service.captureReview();
+    try {
+      f.replaceKeyExternally(nextKey);
+      expect(f.service.routingStamp()).not.toBe(before);
+      expect(lease.isCurrent()).toBe(false);
+    } finally { lease.release(); }
+  });
+  it('does not read the optional key for original mode even if another process changes it', () => {
+    const f = fixture(); const before = f.service.routingStamp();
+    f.replaceKeyExternally('fake-external-key');
+    expect(f.service.routingStamp()).toBe(before);
+    expect(f.reads()).toBe(0);
   });
 });

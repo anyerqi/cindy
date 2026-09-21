@@ -14,6 +14,7 @@ import { VoiceInputSection } from './VoiceInputSection';
 import { AppearanceSection } from './AppearanceSection';
 import { SubagentModelSection } from './SubagentModelSection';
 import { AuxiliaryModelSection } from './AuxiliaryModelSection';
+import { AutoReviewSection } from './AutoReviewSection';
 import { VisionBridgeSection } from './VisionBridgeSection';
 import { ProvidersSection } from './ProvidersSection';
 import { McpServersSection } from './McpServersSection';
@@ -466,6 +467,9 @@ export function SettingsView() {
                   <AuxiliaryModelSection
                     key={`auxiliary-models:${mode}:${dataOwnerId ?? 'none'}`}
                   />
+                </section>
+                <section className="pb-[18px]" aria-label={t('settings.autoReview.title')}>
+                  <AutoReviewSection key={`auto-review:${mode}:${dataOwnerId ?? 'none'}`} />
                 </section>
                 <section className="pb-[18px]" aria-label={t('settings.sections.visionBridge')}>
                   <VisionBridgeSection key={`vision-bridge:${mode}:${dataOwnerId ?? 'none'}`} />

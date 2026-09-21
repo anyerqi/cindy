@@ -1,3 +1,4 @@
+import { registerAutoReviewSettingsIpc } from './auto-review-settings-ipc.js';
 import { listWorktreeRecycleStatus, controlWorktreeRecycle } from './worktree/recycleControls';
 import { registerFilePeerIpc } from './device-link/filePeer';
 import { registerLoginItemIpc } from './login-item-ipc.js';
@@ -2533,6 +2534,7 @@ registerBrowserBackendIpc();
 // ipcMain.handle 在 app ready 前注册也有效。
 registerAppShortcutIpc();
 registerAppearanceSettingsIpc();
+registerAutoReviewSettingsIpc();
 registerLoginItemIpc();
 
 // ── 资源用量面板 IPC ─────────────────────────────────────────────────
